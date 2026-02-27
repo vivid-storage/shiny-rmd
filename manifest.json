@@ -4,7 +4,7 @@
   "platform": "4.5.1",
   "metadata": {
     "appmode": "rmd-shiny",
-    "primary_rmd": "shiny-rmd-example.Rmd",
+    "primary_rmd": "shiny-prerendered-example",
     "primary_html": null,
     "content_category": null,
     "has_parameters": false
