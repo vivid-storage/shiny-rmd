@@ -1,0 +1,137 @@
+---
+title: "Interactive R Markdown with Shiny"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+```
+
+This document uses `runtime: shiny` to embed interactive controls directly in R Markdown. No separate `server.R` or `ui.R` needed.
+
+## Histogram Explorer
+
+Use the controls below to explore the distribution of a built-in dataset.
+
+```{r histogram}
+selectInput("dataset", "Dataset",
+  choices = c("faithful", "airquality", "mtcars", "iris")
+)
+
+uiOutput("var_selector")
+
+sliderInput("bins", "Number of bins", min = 5, max = 100, value = 30)
+
+output$var_selector <- renderUI({
+  df <- get(input$dataset)
+  num_vars <- names(df)[sapply(df, is.numeric)]
+  selectInput("variable", "Variable", choices = num_vars)
+})
+
+renderPlot({
+  req(input$variable)
+  df <- get(input$dataset)
+  x <- df[[input$variable]]
+
+  ggplot(data.frame(x = x), aes(x)) +
+    geom_histogram(bins = input$bins, fill = "#3d7ebf", color = "white") +
+    labs(
+      title = paste("Distribution of", input$variable, "in", input$dataset),
+      x = input$variable,
+      y = "Count"
+    ) +
+    theme_minimal(base_size = 14)
+})
+```
+
+------------------------------------------------------------------------
+
+## Scatter Plot Explorer
+
+```{r scatter}
+fluidRow(
+  column(4,
+    selectInput("scatter_dataset", "Dataset",
+      choices = c("mtcars", "iris"),
+      selected = "mtcars"
+    )
+  ),
+  column(4, uiOutput("x_var_ui")),
+  column(4, uiOutput("y_var_ui"))
+)
+
+checkboxInput("add_smooth", "Add trend line", value = FALSE)
+
+output$x_var_ui <- renderUI({
+  df <- get(input$scatter_dataset)
+  num_vars <- names(df)[sapply(df, is.numeric)]
+  selectInput("x_var", "X axis", choices = num_vars, selected = num_vars[1])
+})
+
+output$y_var_ui <- renderUI({
+  df <- get(input$scatter_dataset)
+  num_vars <- names(df)[sapply(df, is.numeric)]
+  selectInput("y_var", "Y axis", choices = num_vars, selected = num_vars[2])
+})
+
+renderPlot({
+  req(input$x_var, input$y_var)
+  df <- get(input$scatter_dataset)
+
+  validate(
+    need(input$x_var %in% names(df), "Updating variable selection..."),
+    need(input$y_var %in% names(df), "Updating variable selection...")
+  )
+
+  p <- ggplot(df, aes(x = .data[[input$x_var]], y = .data[[input$y_var]])) +
+    geom_point(color = "#FC4C02", size = 2, alpha = 0.7) +
+    labs(x = input$x_var, y = input$y_var,
+         title = paste(input$y_var, "vs", input$x_var)) +
+    theme_minimal(base_size = 14)
+
+  if (input$add_smooth) {
+    p <- p + geom_smooth(method = "lm", se = TRUE, color = "#333333")
+  }
+
+  p
+})
+```
+
+------------------------------------------------------------------------
+
+## Reactive Summary Table
+
+The table below updates automatically based on your scatter plot selections.
+
+```{r summary}
+renderTable({
+  req(input$x_var, input$y_var)
+  df <- get(input$scatter_dataset)
+
+  validate(
+    need(input$x_var %in% names(df), "Updating variable selection..."),
+    need(input$y_var %in% names(df), "Updating variable selection...")
+  )
+
+  data.frame(
+    Statistic = c("Min", "Median", "Mean", "Max", "SD"),
+    `X variable` = c(
+      min(df[[input$x_var]], na.rm = TRUE),
+      median(df[[input$x_var]], na.rm = TRUE),
+      mean(df[[input$x_var]], na.rm = TRUE),
+      max(df[[input$x_var]], na.rm = TRUE),
+      sd(df[[input$x_var]], na.rm = TRUE)
+    ),
+    `Y variable` = c(
+      min(df[[input$y_var]], na.rm = TRUE),
+      median(df[[input$y_var]], na.rm = TRUE),
+      mean(df[[input$y_var]], na.rm = TRUE),
+      max(df[[input$y_var]], na.rm = TRUE),
+      sd(df[[input$y_var]], na.rm = TRUE)
+    ),
+    check.names = FALSE
+  ) |> mutate(across(where(is.numeric), \(x) round(x, 2)))
+}, striped = TRUE, hover = TRUE, bordered = TRUE)
+```
