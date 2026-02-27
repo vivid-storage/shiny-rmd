@@ -22,12 +22,25 @@ selectInput("dataset", "Dataset",
 
 uiOutput("var_selector")
 
-sliderInput("bins", "Number of bins", min = 5, max = 100, value = 30)
+uiOutput("bins_ui")
+
+output$bins_ui <- renderUI({
+  req(input$variable)
+  label <- paste("Number of bins for", input$variable)
+  sliderInput("bins", label, min = 5, max = 100, value = 30)
+})
 
 output$var_selector <- renderUI({
   df <- get(input$dataset)
   num_vars <- names(df)[sapply(df, is.numeric)]
   selectInput("variable", "Variable", choices = num_vars)
+})
+
+tags$div(id = "hist-info", class = "test-info", textOutput("hist_info"))
+
+output$hist_info <- renderText({
+  req(input$variable)
+  paste("Dataset:", input$dataset, "| Variable:", input$variable)
 })
 
 renderPlot({
@@ -63,6 +76,13 @@ fluidRow(
 )
 
 checkboxInput("add_smooth", "Add trend line", value = FALSE)
+
+tags$div(id = "scatter-info", class = "test-info", textOutput("scatter_info"))
+
+output$scatter_info <- renderText({
+  req(input$x_var, input$y_var)
+  paste("Dataset:", input$scatter_dataset, "| X:", input$x_var, "| Y:", input$y_var)
+})
 
 output$x_var_ui <- renderUI({
   df <- get(input$scatter_dataset)
